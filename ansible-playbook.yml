@@ -1,0 +1,38 @@
+- hosts: teamspeak_server
+  tasks:
+  - name: apt_upgrade
+    apt:
+      upgrade: dist
+      update_cache: yes
+      dpkg_options: 'force-confold,force-confdef'
+  - name: create_teamspeak_user
+    user:
+      name: teamspeak
+      uid: 1999
+      shell: /sbin/nologin
+      home: /home/teamspeak
+  - name: fetch_teamspeak_executable
+    unarchive:
+      src: https://files.teamspeak-services.com/releases/server/3.10.2/teamspeak3-server_linux_amd64-3.10.2.tar.bz2
+      dest: /home/teamspeak
+      remote_src: yes
+      owner: teamspeak
+  - name: accept_teamspeak_license
+    command: /usr/bin/touch /home/teamspeak/.ts3server_license_accepted
+    become: yes
+    become_user: teamspeak
+  - name: create_systemd_unit_file
+    template: src=teamspeak.service dest=/lib/systemd/system/teamspeak.service mode=644
+  - name: enable_systemd_unit_file
+    systemd:
+      enabled: yes
+      name: teamspeak
+      daemon_reload: yes
+  - name: start_systemd_unit_file
+    systemd:
+      state: started
+      name: teamspeak
+  - name: get_teamspeak_server_initial_token
+    command: "grep token= /var/log/syslog"
+    register: token
+  - debug: msg="{{ token.stdout }}"
